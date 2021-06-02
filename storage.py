@@ -7,10 +7,6 @@ from contextlib import contextmanager
 
 @contextmanager
 def get_cursor(db_path):
-    """Get a connection/cursor to the database.
-
-    :returns: Tuple of connection and cursor.
-    """
     try:
         conn = sqlite3.connect(database=db_path, timeout=30)
         yield conn, conn.cursor()
@@ -19,10 +15,6 @@ def get_cursor(db_path):
 
 
 def setup_db(db_path):
-    """Create the database and tables.
-
-    To be run once through an interactive shell.
-    """
     with get_cursor(db_path=db_path) as (conn, c):
         c.execute("CREATE TABLE IF NOT EXISTS hash (hash int, offset real, song_id text)")
         c.execute("CREATE TABLE IF NOT EXISTS song_info (artist text, album text, title text, song_id text)")
@@ -41,12 +33,6 @@ def checkpoint_db(db_path):
 
 
 def song_in_db(filename, db_path):
-    """Check whether a path has already been registered.
-
-    :param filename: The path to check.
-    :returns: Whether the path exists in the database yet.
-    :rtype: bool
-    """
     with get_cursor(db_path=db_path) as (conn, c):
         song_id = str(uuid.uuid5(uuid.NAMESPACE_OID, os.path.basename(filename)).int)
         c.execute("SELECT * FROM song_info WHERE song_id=?", (song_id,))
@@ -54,12 +40,6 @@ def song_in_db(filename, db_path):
 
 
 def store_song(hashes, song_info, db_path):
-    """Register a song in the database.
-
-    :param hashes: A list of tuples of the form (hash, time offset, song_id) as returned by
-        :func:`~abracadabra.fingerprint.fingerprint_file`.
-    :param song_info: A tuple of form (artist, album, title) describing the song.
-    """
     if len(hashes) < 1:
         # TODO: After experiments have run, change this to raise error
         # Probably should re-run the peaks finding with higher efficiency
@@ -73,15 +53,6 @@ def store_song(hashes, song_info, db_path):
 
 
 def get_matches(hashes, db_path, threshold=5):
-    """Get matching songs for a set of hashes.
-
-    :param hashes: A list of hashes as returned by
-        :func:`~abracadabra.fingerprint.fingerprint_file`.
-    :param threshold: Return songs that have more than ``threshold`` matches.
-    :returns: A dictionary mapping ``song_id`` to a list of time offset tuples. The tuples are of
-        the form (result offset, original hash offset).
-    :rtype: dict(str: list(tuple(float, float)))
-    """
     h_dict = {}
     for h, t, _ in hashes:
         h_dict[h] = t
@@ -96,7 +67,6 @@ def get_matches(hashes, db_path, threshold=5):
 
 
 def get_info_for_song_id(song_id, db_path):
-    """Lookup song information for a given ID."""
     with get_cursor(db_path=db_path) as (conn, c):
         c.execute("SELECT artist, album, title FROM song_info WHERE song_id = ?", (song_id,))
         return c.fetchone()
