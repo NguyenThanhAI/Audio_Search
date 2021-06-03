@@ -20,6 +20,7 @@ def get_song_info(filename):
 def register_song(filename, db_path, sample_rate, fft_window_size, peak_box_size,
                   point_efficiency, target_t, target_f, target_start, lock):
     if song_in_db(filename, db_path=db_path):
+        print("Song: {} already in database".format(filename))
         return
     hashes = fingerprint_file(filename, sample_rate=sample_rate, fft_window_size=fft_window_size,
                               peak_box_size=peak_box_size,
