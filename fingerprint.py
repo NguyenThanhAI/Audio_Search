@@ -21,25 +21,25 @@ def read_audio_file(audio_path: str, sr_desired=44100):
 
 
 def my_spectrogram(audio, sample_rate, fft_window_size, n_mels=256):
-    #nperseg = int(sample_rate * fft_window_size)
-    #return spectrogram(audio, sample_rate, nperseg=nperseg)
-    mel_spectrogram = librosa.feature.melspectrogram(y=audio, sr=sample_rate,
-                                                     hop_length=int(sample_rate * fft_window_size),
-                                                     fmin=0., fmax=sample_rate / 2.0, n_mels=n_mels)
-    frequencies = librosa.mel_frequencies(n_mels=n_mels, fmin=0., fmax=sample_rate / 2.0)
-    timestamp = np.linspace(0, audio.shape[0] / sample_rate, num=mel_spectrogram.shape[1], endpoint=False)
-
-    mel_spectrogram = np.log(mel_spectrogram + 1e-9)
-    return frequencies, timestamp, mel_spectrogram
+    nperseg = int(sample_rate * fft_window_size)
+    return spectrogram(audio, sample_rate, nperseg=nperseg)
+    #mel_spectrogram = librosa.feature.melspectrogram(y=audio, sr=sample_rate,
+    #                                                 hop_length=int(sample_rate * fft_window_size),
+    #                                                 fmin=0., fmax=sample_rate / 2.0, n_mels=n_mels)
+    #frequencies = librosa.mel_frequencies(n_mels=n_mels, fmin=0., fmax=sample_rate / 2.0)
+    #timestamp = np.linspace(0, audio.shape[0] / sample_rate, num=mel_spectrogram.shape[1], endpoint=False)
+#
+    #mel_spectrogram = np.log(mel_spectrogram + 1e-9)
+    #return frequencies, timestamp, mel_spectrogram
 
 
 def file_to_spectrogram(filename, sample_rate, fft_window_size):
-    #a = AudioSegment.from_file(filename).set_channels(1).set_frame_rate(frame_rate=sample_rate)
-    #audio = np.frombuffer(a.raw_data, np.int16)
-    #print(audio.shape)
-    #return my_spectrogram(audio, sample_rate=sample_rate, fft_window_size=fft_window_size)
-    audio, sr = read_audio_file(audio_path=filename, sr_desired=sample_rate)
-    return my_spectrogram(audio=audio, sample_rate=sample_rate, fft_window_size=fft_window_size)
+    a = AudioSegment.from_file(filename).set_channels(1).set_frame_rate(frame_rate=sample_rate)
+    audio = np.frombuffer(a.raw_data, np.int16)
+    print(audio.shape)
+    return my_spectrogram(audio, sample_rate=sample_rate, fft_window_size=fft_window_size)
+    #audio, sr = read_audio_file(audio_path=filename, sr_desired=sample_rate)
+    #return my_spectrogram(audio=audio, sample_rate=sample_rate, fft_window_size=fft_window_size)
 
 
 def find_peaks(Sxx, peak_box_size, point_efficiency):
