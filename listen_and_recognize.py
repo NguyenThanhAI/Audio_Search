@@ -9,8 +9,10 @@ warnings.filterwarnings("ignore")
 
 import numpy as np
 
+import pyaudio
+
 from fingerprint import fingerprint_file, read_audio_file, fingerprint_audio
-from recognize import recognize_song, best_match
+from recognize import recognize_song, best_match, listen_to_song
 from storage import DataBase
 
 
@@ -29,8 +31,9 @@ def get_args():
     parser = argparse.ArgumentParser()
 
     parser.add_argument("--db_path", type=str, default=None)
-    parser.add_argument("--query_song", type=str, default=None)
-    parser.add_argument("--song_mode", type=str2bool, default=True)
+    parser.add_argument("--channels", type=int, default=1)
+    parser.add_argument("--chunk", type=int, default=1024)
+    parser.add_argument("--record_seconds", type=int, default=10)
     parser.add_argument("--sample_rate", type=int, default=44100)
     parser.add_argument("--fft_window_size", type=float, default=0.2)
     parser.add_argument("--peak_box_size", type=int, default=30)
@@ -43,13 +46,13 @@ def get_args():
 
     return args
 
-
 if __name__ == '__main__':
     args = get_args()
 
     db_path = args.db_path
-    query_song = args.query_song
-    song_mode = args.song_mode
+    channels = args.channels
+    chunk = args.chunk
+    record_seconds = args.record_seconds
     sample_rate = args.sample_rate
     fft_window_size = args.fft_window_size
     peak_box_size = args.peak_box_size
@@ -58,26 +61,12 @@ if __name__ == '__main__':
     target_f = args.target_f
     target_start = args.target_start
 
-    assert 0. < fft_window_size < 1.
-    assert 0. < point_efficiency <= 1.
-
     database = DataBase(db_path=db_path)
 
-    if song_mode:
-        song = recognize_song(filename=query_song, database=database, sample_rate=sample_rate, fft_window_size=fft_window_size,
-                              peak_box_size=peak_box_size, point_efficiency=point_efficiency, target_t=target_t,
-                              target_f=target_f, target_start=target_start, threshold=5)
-        print("Song mode, recognized song: {}".format(song))
+    song = listen_to_song(filename=None, format=pyaudio.paInt16, channels=channels, rate=sample_rate, chunk=chunk,
+                          record_seconds=record_seconds,
+                          sample_rate=sample_rate, fft_window_size=fft_window_size, peak_box_size=peak_box_size,
+                          point_efficiency=point_efficiency,
+                          target_t=target_t, target_f=target_f, target_start=target_start, database=database)
 
-    else:
-        audio, sr = read_audio_file(audio_path=query_song, sr_desired=sample_rate)
-        hashes = fingerprint_audio(frames=audio, sample_rate=sample_rate, fft_window_size=fft_window_size,
-                                   peak_box_size=peak_box_size, point_efficiency=point_efficiency, target_t=target_t,
-                                   target_f=target_f, target_start=target_start)
-        matches = database.get_matches(hashes=hashes, threshold=5)
-        matched_song = best_match(matches=matches)
-        song = database.get_info_for_song_id(song_id=matched_song)
-
-        print("Audio mode, recognized song: {}".format(song))
-
-    database.close()
+    print("Recognized song: {}".format(song))

@@ -1,9 +1,12 @@
 import argparse
 
+from multiprocessing import Process, Manager
+from multiprocessing.managers import BaseManager
+
 import warnings
 warnings.filterwarnings("ignore")
 
-from storage import setup_db
+from storage import DataBase
 from recognize import register_directory
 
 
@@ -43,7 +46,13 @@ if __name__ == '__main__':
     assert 0. < fft_window_size < 1.
     assert 0. < point_efficiency <= 1.
 
-    setup_db(db_path=db_path)
-    register_directory(path=song_dir, num_workers=num_workers, db_path=db_path, sample_rate=sample_rate,
+    BaseManager.register("DataBase", DataBase)
+    manager = BaseManager()
+    manager.start()
+    database = manager.DataBase(db_path=db_path)
+    database.setup_db()
+    register_directory(path=song_dir, num_workers=num_workers, database=database, sample_rate=sample_rate,
                        fft_window_size=fft_window_size, peak_box_size=peak_box_size, point_efficiency=point_efficiency,
                        target_t=target_t, target_f=target_f, target_start=target_start)
+
+    database.close()

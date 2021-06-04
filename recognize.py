@@ -6,7 +6,7 @@ import numpy as np
 from tinytag import TinyTag
 from record import record_audio
 from fingerprint import fingerprint_file, fingerprint_audio
-from storage import store_song, get_matches, get_info_for_song_id, song_in_db, checkpoint_db
+from storage import DataBase
 
 KNOWN_EXTENSIONS = ["mp3", "wav", "flac", "m4a"]
 
@@ -17,9 +17,9 @@ def get_song_info(filename):
     return (artist, tag.album, tag.title)
 
 
-def register_song(filename, db_path, sample_rate, fft_window_size, peak_box_size,
+def register_song(filename, database: DataBase, sample_rate, fft_window_size, peak_box_size,
                   point_efficiency, target_t, target_f, target_start, lock):
-    if song_in_db(filename, db_path=db_path):
+    if database.song_in_db(filename=filename):
         print("Song: {} already in database".format(filename))
         return
     hashes = fingerprint_file(filename, sample_rate=sample_rate, fft_window_size=fft_window_size,
@@ -31,17 +31,17 @@ def register_song(filename, db_path, sample_rate, fft_window_size, peak_box_size
         logging.info(f"{current_process().name} waiting to write {filename}")
         lock.acquire()
         logging.info(f"{current_process().name} writing {filename}")
-        store_song(hashes, song_info, db_path=db_path)
+        database.store_song(hashes, song_info)
         logging.info(f"{current_process().name} wrote {filename}")
         lock.release()
     except NameError:
         logging.info(f"Single-threaded write of {filename}")
         # running single-threaded, no lock needed
-        store_song(hashes, song_info, db_path=db_path)
+        database.store_song(hashes, song_info)
     #store_song(hashes=hashes, song_info=song_info, db_path=db_path)
 
 
-def register_directory(path, num_workers, db_path, sample_rate, fft_window_size, peak_box_size,
+def register_directory(path, num_workers, database: DataBase, sample_rate, fft_window_size, peak_box_size,
                        point_efficiency, target_t, target_f, target_start):
     #def pool_init(l):
     #    global lock
@@ -58,7 +58,7 @@ def register_directory(path, num_workers, db_path, sample_rate, fft_window_size,
     #l = Lock()
     m = Manager()
     l = m.Lock()
-    register_a_song = partial(register_song, db_path=db_path, sample_rate=sample_rate, fft_window_size=fft_window_size,
+    register_a_song = partial(register_song, database=database, sample_rate=sample_rate, fft_window_size=fft_window_size,
                               peak_box_size=peak_box_size,
                               point_efficiency=point_efficiency, target_t=target_t, target_f=target_f,
                               target_start=target_start, lock=l)
@@ -68,7 +68,7 @@ def register_directory(path, num_workers, db_path, sample_rate, fft_window_size,
     with Pool(processes=num_workers) as p:
         p.map(register_a_song, to_register)
     # speed up future reads
-    checkpoint_db(db_path=db_path)
+    database.checkpoint_db()
 
 
 def score_match(offsets):
@@ -97,14 +97,14 @@ def best_match(matches):
 
 
 def recognize_song(filename, sample_rate, fft_window_size, peak_box_size,
-                   point_efficiency, target_t, target_f, target_start, db_path, threshold):
+                   point_efficiency, target_t, target_f, target_start, database: DataBase, threshold):
     hashes = fingerprint_file(filename=filename, sample_rate=sample_rate,
                               fft_window_size=fft_window_size, peak_box_size=peak_box_size,
                               point_efficiency=point_efficiency, target_t=target_t,
                               target_f=target_f, target_start=target_start)
-    matches = get_matches(hashes=hashes, db_path=db_path, threshold=threshold)
+    matches = database.get_matches(hashes=hashes, threshold=threshold)
     matched_song = best_match(matches=matches)
-    info = get_info_for_song_id(song_id=matched_song, db_path=db_path)
+    info = database.get_info_for_song_id(song_id=matched_song)
     if info is not None:
         return info
     return matched_song
@@ -112,15 +112,15 @@ def recognize_song(filename, sample_rate, fft_window_size, peak_box_size,
 
 def listen_to_song(filename, format, channels, rate, chunk, record_seconds,
                    sample_rate, fft_window_size, peak_box_size, point_efficiency, target_t, target_f, target_start,
-                   db_path, threshold=5):
+                   database: DataBase, threshold=5):
     audio = record_audio(filename=filename, format=format, channels=channels,
                          rate=rate, chunk=chunk, record_seconds=record_seconds)
     hashes = fingerprint_audio(frames=audio, sample_rate=sample_rate, fft_window_size=fft_window_size,
                                peak_box_size=peak_box_size, point_efficiency=point_efficiency,
                                target_t=target_t, target_f=target_f, target_start=target_start)
-    matches = get_matches(hashes=hashes, db_path=db_path)
+    matches = database.get_matches(hashes=hashes)
     matched_song = best_match(matches=matches)
-    info = get_info_for_song_id(matched_song, db_path=db_path)
+    info = database.get_info_for_song_id(matched_song)
     if info is not None:
         return info
     return matched_song
